@@ -51,21 +51,26 @@
 	<pre>
     TASK:STOP taskId,threadId   #停止任务             参数为任务id 和 线程id
 	TASK:START taskId           #开始任务             参数为任务id
+	TASK:CRASH taskId           #置任务状态为异常      参数为任务id
 	THRead:MAX:NUM threadNum    #允许开启的线程最大数  参数为线程数
 	</pre>
 4. 循环写出文件，文件路径为`process.status_file`所配置的路径，时间间隔为配置文件中写出文件时间。写出的信息格式为：
 	<pre>
-	//不同的信息用逗号分割
+	//不同的信息用逗号分割，整个信息用< />括起来
 	write_file_time=1473061243  // 自1970年1月1日返回的秒数
+    crash=true                  // true/false  是否崩溃
 	thread_id=1
 	thread_num=10
 	task_id=5
 	task_done_num=20
 	</pre> 
 
-### 三、系统设计 ###
+例如：
+`<write_file_time=1473061243,crash=true,thread_id=1,thread_num=10,task_id=5,task_done_num=20/>`
 
-本系统的服务端从数据库读取命令，下发给指定的客户端，客户端控制对应的应用程序。为了降低客户端和应用程序间的耦合度，客户端和应用程序之间采用文件的方式传递信息。并且客户端可将采集的信息报告给服务端，服务端上传到数据库。服务端与客户端采用`TCP\IP`的通讯方式。其系统架构图如图3.1
+### 四、系统设计 ###
+
+本系统的服务端从数据库读取命令，下发给指定的客户端，客户端控制对应的应用程序。为了降低客户端和应用程序间的耦合度，`客户端和应用程序之间采用文件的方式传递信息`。并且客户端可将采集的信息报告给服务端，服务端上传到数据库。`服务端与客户端采用TCP\IP`的通讯方式。其系统架构图如图3.1
 
 ![系统架构图](http://i.imgur.com/3BoeoZc.png)
 <center>**图3.1**</center>
@@ -74,7 +79,7 @@
 
 ***服务端配置文件设计***
 
-servece_config.properties
+service_config.properties
 	
 	service.port        = 6666             #默认为6666
 	log_path            = D:\xxx\xxx\logs\ #日志目录
@@ -106,7 +111,12 @@ servece_config.properties
 	TASK:STOP taskId,threadId   #停止任务    参数为任务id 和 线程id
 	TASK:START taskId           #开始任务    参数为任务id
 	
+> 日志记录
 
+采用log4j，将服务端所收发的命令写到日志。格式如下：
+
+	rec  - command   # 收到的命令
+	send - command   # 发送的命令
 
 
 **客户端设计**
@@ -123,26 +133,92 @@ client_config.properties
 	process.execute_file    = D:\xxx\xxx\example.exe      #应用程序执行文件
 	process.status_file     = D:\xxx\xxx\status_file.txt  #应用程序写出的文件
 	client.command_file     = D:\xxx\xxx\command_file.txt #命令文件 客户端->应用程序
-    client.read_file_time   = 5                           #单位为秒
+    client.read_file_time   = 5                           #单位为秒 一般等于应用程序写文件的时间
 	
 ***客户端各模块设计***
 
+客户端
+
 > 监控守护程序，守护各程序启动、超时重启、崩溃等。并将动作实时汇报服务端
 
-监听服务端命令
+监听服务端命令，并且执行对应的功能。  
 
-> 获取当前监控程序正在执行的任务信息
+1. 启动程序
+	<pre>
+	//使用Desktop启动应用程序    
+	public static void startProgram(String programPath) throws IOException {  
+	    log.info("启动应用程序：" + programPath);  
+	    if (StringUtils.isNotBlank(programPath)) {  
+	        try {  
+	            Desktop.getDesktop().open(new File(programPath));  
+	        } catch (Exception e) {  
+	            e.printStackTrace();  
+	            log.error("应用程序：" + programPath + "不存在！");  
+	        }  
+	    }  
+	}  
+	</pre>
+
+2. 超时重启
+
+	每隔一段时间扫描一次应用程序写出的文件，文件路径为`process.status_file`,若crash字段为false，则分别计算当前时间与各线程最后写文件的时间差，若时间差大于client读文件时间 + 2 （可能会有延时），则发送停止该线程命令，然后重启线程，(采用`覆盖`的方式写文件）。每读一次文件，读完后将文件删除。（删除是为了清理已读完的数据，优化性能，不过可能报异常，因为应用程序可能正在写文件，这里需捕获异常）。  
+命令如下：
+	<pre>
+	TASK:STOP taskId,threadId   #停止任务      参数为任务id 和 线程id
+	TASK:START taskId           #开始任务      参数为任务id
+	</pre>
+
+3. 崩溃
+
+	若应用程序写出的文件里面crash信息为true，则立即向应用程序发送导致crash的taskId，然后调用1，重启程序。
+	<pre>
+	TASK:CRASH taskId           #导致崩溃的任务 参数为任务id
+	</pre>
+
+> 获取当前监控程序正在执行的任务信息以及各程序已运行时间、已处理任务数等任务状态信息
+
+每隔指定时间内扫描一遍应用程序写出的文件，将信息传到服务端。程序已运行时间为当前时间与应用程序第一次写文件的时间差。
 
 > 向指定的被监控程序下发任务停止、任务重启等命令
 
+命令格式参考2
+
 > 搜集各程序CPU所占百分比、内存大小、线程数等实时状态
 
-> 搜集统计各程序已运行时间、已处理任务数等任务状态信息
+TODO
 
 > 搜集所在服务器硬件基本信息如内存大小、cpu型号、硬盘总大小及剩余等机器信息
 
+TODO
+
 > 将搜集的所有信息汇报定时至指定服务端
+
+读完文件后将信息汇报到服务端
 
 > 实时控制各监控程序所占资源，比如，控制每个程序起几线
 
+像应用程序发送最大线程数的命令，命令如下：
+
+	THRead:MAX:NUM threadNum    #允许开启的线程最大数  参数为线程数
+
 > 日志记录功能
+
+采用log4j，将客户端所收发的命令以及扫描到的应用程序信息写到日志。格式如下：
+
+	rec  - command   # 收到的命令
+	send - command   # 发送的命令
+	read - msg       # 读到的信息
+
+### 五、数据库设计 ###
+
+数据库采用mysql，数据库名为`ProjectMonitor`,表信息如下：
+
+TableName: `project_msg`    
+
+| ABCD | EFGH | IJKL |
+| -----|:----:| ----:|
+| a    | b    | c    |
+| d    | e    |  f   |
+| g    | h    |   i  |
+
+TableName: `server_msg`
