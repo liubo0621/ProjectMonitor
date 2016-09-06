@@ -49,10 +49,10 @@
 2. 循环读取客户端下发的命令文件，文件路径为`client.command_file`所配置的路径，时间间隔为配置文件中读取文件时间。
 3. 根据命令做出对应的反应，命令格式如下：
 	<pre>
-    TASK:STOP taskId,threadId   #停止任务             参数为任务id 和 线程id
-	TASK:START taskId           #开始任务             参数为任务id
-	TASK:CRASH taskId           #置任务状态为异常      参数为任务id
-	THRead:MAX:NUM threadNum    #允许开启的线程最大数  参数为线程数
+    TASK:STOP taskId,threadId   #停止任务              参数为任务id 和 线程id
+	TASK:START taskId           #开始任务              参数为任务id
+	TASK:CRASH taskId           #置任务状态为异常       参数为任务id
+	THRead:MAX:NUM threadNum    #允许开启的线程最大数    参数为线程数
 	</pre>
 4. 循环写出文件，文件路径为`process.status_file`所配置的路径，时间间隔为配置文件中写出文件时间。写出的信息格式为：
 	<pre>
@@ -60,13 +60,13 @@
 	write_file_time=1473061243  // 自1970年1月1日返回的秒数
     crash=true                  // true/false  是否崩溃
 	thread_id=1
-	thread_num=10
 	task_id=5
+    task_name=xxx
 	task_done_num=20
 	</pre> 
 
 例如：
-`<write_file_time=1473061243,crash=true,thread_id=1,thread_num=10,task_id=5,task_done_num=20/>`
+`<write_file_time=1473061243,crash=true,thread_id=1,thread_num=10,task_id=5,task_name=xxx,task_done_num=20/>`
 
 ### 四、系统设计 ###
 
@@ -213,12 +213,57 @@ TODO
 
 数据库采用mysql，数据库名为`ProjectMonitor`,表信息如下：
 
-TableName: `project_msg`    
+项目信息表 TableName: `project_msg`
 
-| ABCD | EFGH | IJKL |
-| -----|:----:| ----:|
-| a    | b    | c    |
-| d    | e    |  f   |
-| g    | h    |   i  |
+| 字段名              | 数据类型| 长度 | 说明       | 描述 |
+|:-------------------|:-------|:----|:----------|:----|
+| pk_pro_id  | int    |      | 非空，自增 | 主键 |
+| pro_name         | varchar    |  20    | 非空      | 应用程序名|
+| pro_thread_num  | int    |     | 可空   |  线程数 |
+| pro_cpu_rate | varchar | 10 | 可空 | CPU所占百分比 |
+| pro_physical_memory | varchar | 20 | 可空 | 所占内存 |
+| pro_run_time| int | | 可空 | 已运行时长 单位s |
+| pk_ser_id | int | | 非空 | 服务器id|
 
-TableName: `server_msg`
+线程信息表 TableName: `thread_msg`
+
+| 字段名              | 数据类型| 长度 | 说明       | 描述 |
+|:-------------------|:-------|:----|:----------|:----|
+| pk_thr_id | int | | 非空，自增 | 主键 |
+| thr_port | varchar | 6 |非空 | 线程端口 |
+| thr_task_id | int | | 非空 | 任务主键 |
+| thr_task_name| varchar | 20|可空  |任务名|
+| thr_task_done_num | int | | 非空 | 已做完任务数 |
+| pk_pro_id  | int    |      | 非空 | 项目id |
+| pk_ser_id | int | | 非空 | 服务器id|
+
+服务器信息表 TableName: `server_msg`
+
+| 字段名              | 数据类型| 长度 | 说明       | 描述 |
+|:-------------------|:-------|:----|:----------|:----|
+| pk_ser_id | int | | 非空，自增 | 主键|
+| ser_ip | varchar | 16 |非空 | 服务器IP|
+| ser_mac| varchar | 30 | 可空 | 服务器mac地址|
+| ser_system| varchar | 20 | 可空 | 服务器系统 |
+| ser_cpu | varchar | 20 | 可空 | 服务器CPU型号 |
+| ser_physical_memory| int | | 可空 | 服务器内存|
+| ser_memory| int |  | 可空 | 硬盘大小 单位k|
+| ser_memory_free| int | | 可空| 硬盘剩余大小单位k |
+
+命令信息表 TableName: `command_msg`
+
+| 字段名              | 数据类型| 长度 | 说明       | 描述 |
+|:-------------------|:-------|:----|:----------|:----|
+|pk_com_id | int | | 非空，自增 | 主键 |
+|command | varchar | 20 | 非空 | 命令 |
+| ser_ip | varchar | 16 |非空 | 服务器IP|
+| thr_port | varchar |6| 非空 | 线程端口 |
+|status | int | | 非空 | 状态 |
+
+字典表 TableName: `dict`
+
+| 字段名              | 数据类型| 长度 | 说明       | 描述 |
+|:-------------------|:-------|:----|:----------|:----|
+| pk_dict_id | int | | 非空，自增 | 主键 |
+| status | int | | 非空 | 状态 |
+| describe | varchar | 20 | 非空 | 状态描述 |
