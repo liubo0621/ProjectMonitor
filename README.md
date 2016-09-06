@@ -1,7 +1,5 @@
 # ProjectMonitor #
 
----
-
 ### 一、背景及意义 ###
 
 随着系统却来却多，任务又多种多样，系统发生异常或崩溃的时间点是不可预测的。人工监控和管理这些系统即麻烦又不及时，并且不能给客户一个可视化的数据来显示这些系统的运转情况。那么一款可以监控和管理这些系统的软件就必不可少了，我们把这款软件称作*ProjectMonitor*。
@@ -51,9 +49,9 @@
 2. 循环读取客户端下发的命令文件，文件路径为`client.command_file`所配置的路径，时间间隔为配置文件中读取文件时间。
 3. 根据命令做出对应的反应，命令格式如下：
 	<pre>
-	THRead:STOP threadId,taskId #停止线程    参数为线程id和任务id
-	THRead:START taskId         #开启线程    参数为任务id
-	THRead:MAX:NUM threadNum    #线程最大数 参数为线程数
+    TASK:STOP taskId,threadId   #停止任务             参数为任务id 和 线程id
+	TASK:START taskId           #开始任务             参数为任务id
+	THRead:MAX:NUM threadNum    #允许开启的线程最大数  参数为线程数
 	</pre>
 4. 循环写出文件，文件路径为`process.status_file`所配置的路径，时间间隔为配置文件中写出文件时间。写出的信息格式为：
 	<pre>
@@ -98,15 +96,15 @@ servece_config.properties
 
 > 可以接收数据库下发的命令，并传至目标节点
 
-各线程内每隔指定的时间扫描一遍数据库，如有命令，则比较当前命令是否属于本线程（可通过端口号和IP字段来比较），若属于本线程，则将命令下发到客户端。（命令包括重启机器、启动\重启指定程序、停止\启动指定程序进行的指定任务等）
+各线程内每隔指定的时间扫描一遍数据库（可通过客户端的ip和端口号作为筛选条件），则将命令下发到客户端。（命令包括重启机器、启动\重启指定程序、停止\启动指定程序进行的指定任务等）
 
 命令定义如下：
 
 	SERver:RESTART              #重启服务器
 	PROcess:RESTART				#重启程序
 	PROcess:START				#启动程序
-	THRead:STOP threadId,taskId #停止线程    参数为线程id和任务id
-	THRead:START taskId         #开启线程    参数为任务id
+	TASK:STOP taskId,threadId   #停止任务    参数为任务id 和 线程id
+	TASK:START taskId           #开始任务    参数为任务id
 	
 
 
@@ -128,8 +126,6 @@ client_config.properties
     client.read_file_time   = 5                           #单位为秒
 	
 ***客户端各模块设计***
-
-采用TCP/IP方式与服务端通讯，其服务端传达的命令如下：
 
 > 监控守护程序，守护各程序启动、超时重启、崩溃等。并将动作实时汇报服务端
 
