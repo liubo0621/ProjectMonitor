@@ -256,10 +256,40 @@ TODO
 | ser_ip | varchar | 16 |非空 | 服务器IP|
 | ser_mac| varchar | 30 | 可空 | 服务器mac地址|
 | ser_system| varchar | 20 | 可空 | 服务器系统 |
-| ser_cpu | varchar | 20 | 可空 | 服务器CPU型号 |
-| ser_physical_memory| int | | 可空 | 服务器内存|
-| ser_memory| int |  | 可空 | 硬盘大小 单位k|
-| ser_memory_free| int | | 可空| 硬盘剩余大小单位k |
+| ser_memory| int | | 可空 | 服务器总内存 单位k|
+| ser_memory_used| int | | 可空 | 服务器已用内存 单位k|
+| ser_memory_free| int | | 可空 | 服务器剩余内存 单位k|
+| ser_swap| int | | 可空 | 交换区总量 单位k|
+| ser_swap_used| int | | 可空 | 当前交换区使用量 单位k|
+| ser_swap_free| int | | 可空 | 当前交换区剩余量  单位k
+
+CPU信息表 TableName: `cpu_msg`
+
+| 字段名              | 数据类型| 长度 | 说明       | 描述 |
+|:-------------------|:-------|:----|:----------|:----|
+| pk_cpu_id| int | | 非空，自增 | 主键|
+| cpu_mhz | int | | 非空 | CPU总容量 单位MHZ|
+| cpu_vendor| varchar | 20 | 可空 | CPU的卖主 如Intel|
+| cpu_model | varchar | 20 | 非空| CPU型号|
+| cpu_chache_size| int | | 可空 | 缓冲存储器数量|
+| for_server_id| int | | 非空 | 服务器id |
+
+硬盘信息表 TableName: `physical_memory_msg`
+
+
+| 字段名              | 数据类型| 长度 | 说明       | 描述 |
+|:-------------------|:-------|:----|:----------|:----|
+| pk_phy_id | int | | 非空，自增 | 主键|
+| phy_name | varchar | 10 | 非空 | 硬盘名 |
+| phy_sys_type_name| varchar| 20 | 可空 | 文件系统类型，比如FAT32、NTFS|
+| phy_type_name | varchar| 20 | 可空 | 文件系统类型名,本地硬盘、光驱、网络文件系统等|
+| phy_memory| int |  | 可空 | 硬盘总大小 单位k|
+| phy_memory_free| int|| 可空 | 硬盘剩余大小 单位k|
+| phy_memory_used| int | | 可空| 硬盘已用大小单位k |
+| phy_memory_avail| int | | 可空| 硬盘可用大小单位k |
+| phy_use_percent | double| | 可空 |资源的利用率|
+| for_server_id| int | | 非空 | 服务器id |
+
 
 命令信息表 TableName: `command_msg`
 
