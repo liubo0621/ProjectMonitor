@@ -18,6 +18,7 @@
 
 **客户端** 
 
+1. 收到重启服务器命令时重启服务器，开机自动运行客户端
 1. 监控守护程序，守护各程序启动、超时重启、崩溃等。并将动作实时汇报服务端
 3. 向指定的被监控程序下发命令（包括任务停止、任务重启、允许的最大线程数）
 4. 获取当前监控程序正在执行的任务信息（包括任务名，任务id）
@@ -143,6 +144,17 @@ client_config.properties
 	
 ***客户端各模块设计***
 
+> 收到重启服务器命令时重启服务器，开机自动运行客户端
+
+1. 重启
+    <pre>
+    shutdown -r -f -t 0
+    </pre>
+
+2. 开机自动运行客户端
+  
+TODO
+
 > 监控守护程序，守护各程序启动、超时重启、崩溃等。并将动作实时汇报服务端
 
 监听服务端命令，并且执行对应的功能。  
@@ -196,7 +208,7 @@ TODO
 
 > 收集所在服务器硬件基本信息（包括服务器IP，MAC地址、系统、CPU型号、内存、硬盘大小、硬盘剩余大小）
 
-TODO
+采用`Sigar`来收集
 
 > 将收集的所有信息汇报定时至指定服务端
 
@@ -272,6 +284,10 @@ CPU信息表 TableName: `cpu_msg`
 | cpu_vendor| varchar | 20 | 可空 | CPU的卖主 如Intel|
 | cpu_model | varchar | 20 | 非空| CPU型号|
 | cpu_chache_size| int | | 可空 | 缓冲存储器数量|
+| cpu_user| double| | 可空 | 用户使用率|
+| cpu_system| double| | 可空 | 系统使用率|
+| cpu_wait|double| | 可空 | 等待|
+| cpu_idle|double| | 可空 | 空闲|
 | for_server_id| int | | 非空 | 服务器id |
 
 硬盘信息表 TableName: `physical_memory_msg`
