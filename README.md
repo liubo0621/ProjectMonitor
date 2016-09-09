@@ -333,3 +333,22 @@ CPU信息表 TableName: `cpu_msg`
 | pk_dict_id | int | | 非空，自增 | 主键 |
 | status | int | | 非空 | 状态 |
 | describe | varchar | 20 | 非空 | 状态描述 |
+
+
+附录
+--
+
+<pre>
+TASK:STOP taskId,threadId   #停止任务              参数为任务id 和 线程id
+TASK:START taskId           #开始任务              参数为任务id
+TASK:CRASH taskId           #置任务状态为异常       参数为任务id
+
+THRead:MAX:NUM threadNum    #允许开启的线程最大数    参数为线程数
+
+SERver:RESTART              #重启服务器
+
+PROcess:RESTART             #重启程序
+PROcess:START               #启动程序
+
+</pre>
+    
