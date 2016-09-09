@@ -135,16 +135,18 @@ client_config.properties
     process.num             = 2
 
     process1.execute_file    = D:\\xxx\\xxx\\example.exe      #应用程序执行文件
+    process1.main_class      = example.exe                    #java程序入口类或 exe文件名
     process1.status_file     = D:\\xxx\\xxx\\status_file.txt  #应用程序写出的文件
     client1.command_file     = D:\\xxx\\xxx\\command_file.txt #命令文件 客户端->应用程序
 
-    process2.execute_file    = D:\\xxx\\xxx\\example.exe      #应用程序执行文件
+    process2.execute_file    = D:\\xxx\\xxx\\example.jar      #应用程序执行文件
     process2.status_file     = D:\\xxx\\xxx\\status_file.txt  #应用程序写出的文件
+    process1.main_class      = com.Test                       #java程序入口类或 exe文件名
     client2.command_file     = D:\\xxx\\xxx\\command_file.txt #命令文件 客户端->应用程序
 	
 ***客户端各模块设计***
 
-> 收到重启服务器命令时重启服务器，开机自动运行客户端
+> 收到重启服务器命令时重启服务器，开机自动运行客户端 
 
 1. 重启
     <pre>
@@ -186,7 +188,14 @@ TODO
 
 3. 崩溃
 
-	若应用程序写出的文件里面crash信息为true，则立即向应用程序发送导致crash的taskId，然后调用1，重启程序。
+	若应用程序写出的文件里面crash信息为true，则立即向应用程序发送导致crash的taskId，然后关闭进程再调用1，重启程序。
+
+    关闭进程：
+
+    如果是java程序，先执行`jps -l` 列出所java的主类名和PID，然后筛选取得当前应用程序的pid执行`taskkill /PID pid /F`强行关闭进程；若为exe程序，则执行`tasklist` 然后筛选取得当前应用程序的pid执行`taskkill /PID pid /F`强行关闭进程 
+    
+    告知应用程序 crash
+ 
 	<pre>
 	TASK:CRASH taskId           #导致崩溃的任务 参数为任务id
 	</pre>
