@@ -19,8 +19,8 @@
 **客户端** 
 
 1. 收到重启服务器命令时重启服务器，开机自动运行客户端
-1. 监控守护程序，守护各程序启动、超时重启、崩溃等。并将动作实时汇报服务端
-3. 向指定的被监控程序下发命令（包括任务停止、任务重启、允许的最大线程数）
+1. 监控守护程序，守护各程序启动、超时、崩溃等。并将动作实时汇报服务端
+3. 向指定的被监控程序下发命令（包括任务停止、允许的最大线程数）
 4. 获取当前监控程序正在执行的任务信息（包括任务名，任务id）
 4. 收集程序信息（包括程序名、线程数、CPU所占百分比、所占内存、已运行时间、已做完任务数）
 6. 收集所在服务器硬件基本信息（包括服务器IP，MAC地址、系统、CPU型号、内存、硬盘大小、硬盘剩余大小）
@@ -51,9 +51,9 @@
 	TASK:CRASH taskId           #置任务状态为异常       参数为任务id
 	THRead:MAX:NUM threadNum    #允许开启的线程最大数    参数为线程数
 	</pre>
-4. 执行任务前写出文件，文件路径为`process.status_file`所配置的路径，写出的信息格式为：
+4. 执行任务前或完成任务后写出文件，文件路径为`process.status_file`所配置的路径，写出的信息格式为：
 	<pre>
-	# 不同的信息用逗号分割，整个信息用< >括起来
+	# 不同的信息用逗号分割，整个信息用< />括起来
 	write_file_time=2016-09-08 12:32:64   # yyyy-MM-dd HH：mm:ss
     process_name=xxx
     crash=true                            # true||false  是否崩溃
@@ -62,11 +62,14 @@
 	task_id=5
     task_name=xxx
     task_length=12                        # 单位为s
+    task_status=doing                     # 任务状态  doing || done
 	task_done_num=20
 	</pre> 
 
 例如：
-`<write_file_time=2016-09-08 12:32:64,process_name=xxx,crash=true,thread_id=1,thread_num=10,task_id=5,task_name=xxx,task_length=12,task_done_num=20>`
+`<write_file_time=2016-09-08 12:32:64,process_name=xxx,crash=true,thread_id=1,thread_num=10,task_id=5,task_name=xxx,task_length=12,task_status=doing,task_done_num=20/>`
+
+<font color = "red">注：不要有多余的空格</font>
 
 ### 四、系统设计 ###
 
@@ -81,15 +84,15 @@
 
 service_config.properties
 	
-	service.port        = 6666             #默认为6666
-	log_path            = D:\\xxx\\xxx\\logs\\ #日志目录
-	search_command_time = 5                #单位为秒 
+	service.port        = 6666                   #默认为6666
+	log_path            = D:\\xxx\\xxx\\logs\\   #日志目录
+	search_command_time = 5                      #单位为秒 
 
 ***服务端各模块设计***
   
 > 能够实时接收并显示所管辖的各机器的状态
 
-监听客户端的连接请求，每收到一个请求，则创建一个对应的线程，然后监听数据，显示功能暂定。
+监听客户端的连接请求，每收到一个请求，则创建一个对应的线程，然后监听数据，在重启客户端所在的服务器时，线程关闭。显示功能暂定。
 
 > 在数据库连接时，可以定时将信息汇报至数据库表
 
@@ -127,18 +130,21 @@ service_config.properties
 
 client_config.properties
 	
-	service.ip              = xxx.xxx.xxx.xxx             #服务端IP
-	service.port            = port #默认为6666             #服务端端口号
-    client.read_file_time   = 5                           #单位为秒 一般等于应用程序写文件的时间
+	service.ip               = xxx.xxx.xxx.xxx                #服务端IP
+	service.port             = port #默认为6666                #服务端端口号
+    client.read_file_time    = 5                              #单位为秒 一般等于应用程序写文件的时间
 
-    # 一个客户端可能管理多个应用程序,采用下面这种形式配置
-    process.num             = 2
-
+    # 一个客户端可能管理多个应用程序,采用下面这种形式配置。
+    #注意： 不同的应用程序需配置不同的文件路径或文件名
+    process.num              = 2
+    
+    process1.name            = xxx
     process1.execute_file    = D:\\xxx\\xxx\\example.exe      #应用程序执行文件
     process1.main_class      = example.exe                    #java程序入口类或 exe文件名
     process1.status_file     = D:\\xxx\\xxx\\status_file.txt  #应用程序写出的文件
     client1.command_file     = D:\\xxx\\xxx\\command_file.txt #命令文件 客户端->应用程序
 
+    process2.name            = xxx
     process2.execute_file    = D:\\xxx\\xxx\\example.jar      #应用程序执行文件
     process2.status_file     = D:\\xxx\\xxx\\status_file.txt  #应用程序写出的文件
     process1.main_class      = com.Test                       #java程序入口类或 exe文件名
@@ -177,18 +183,17 @@ TODO
 	}  
 	</pre>
 
-2. 超时重启
+2. 超时
 
-	每隔一段时间扫描一次应用程序写出的文件，文件路径为`process.status_file`,若crash字段为false，则分别计算当前时间与各线程最后写文件的时间差，若时间差大于client读文件时间 + 2 （可能会有延时），则发送停止该线程命令，然后重启线程，(采用`覆盖`的方式写文件）。每读一次文件，读完后将文件删除。（删除是为了清理已读完的数据，优化性能，不过可能报异常，因为应用程序可能正在写文件，这里需捕获异常）。  
+	每隔一段时间扫描一次应用程序写出的文件，文件路径为`process.status_file`,若crash字段为false，则分别计算当前时间与各线程最后写文件的时间差，若时间差大于该线程执行任务所需要的时间，则发送停止该线程命令，(采用`覆盖`的方式写文件）。每读一次文件，读完后将文件删除。（删除是为了清理已读完的数据，优化性能，不过可能报异常，因为应用程序可能正在写文件，这里需捕获异常）。  
 命令如下：
 	<pre>
 	TASK:STOP taskId,threadId   #停止任务      参数为任务id 和 线程id
-	TASK:START taskId           #开始任务      参数为任务id
 	</pre>
 
 3. 崩溃
 
-	若应用程序写出的文件里面crash信息为true，则立即向应用程序发送导致crash的taskId，然后关闭进程再调用1，重启程序。
+	若应用程序写出的文件里面crash信息为true，则立即关闭应用程序，然后向应用程序发送导致crash的taskId，最后再调用1，重启程序。
 
     关闭进程：
 
@@ -200,15 +205,14 @@ TODO
 	TASK:CRASH taskId           #导致崩溃的任务 参数为任务id
 	</pre>
 
-> 向指定的被监控程序下发命令（包括任务停止、任务重启、允许的最大线程数）
+> 向指定的被监控程序下发命令（包括任务停止、允许的最大线程数）
 
     THRead:MAX:NUM threadNum    #允许开启的线程最大数  参数为线程数
 	TASK:STOP taskId,threadId   #停止任务      参数为任务id 和 线程id
-	TASK:START taskId           #开始任务      参数为任务id
 
 > 收集任务信息（任务名、任务id、线程id），程序信息（程序名、线程数、已运行时间、已做完任务数、）
 
-每隔指定时间内扫描一遍应用程序写出的文件，将信息传到服务端。程序已运行时间为当前时间与应用程序第一次写文件的时间差。
+每隔指定时间内扫描一遍应用程序写出的文件。程序已运行时间为当前时间与应用程序第一次写文件的时间差。
 
 
 > 收集被监控程序CPU所占百分比、所占内存
@@ -340,7 +344,6 @@ CPU信息表 TableName: `cpu_msg`
 
 <pre>
 TASK:STOP taskId,threadId   #停止任务              参数为任务id 和 线程id
-TASK:START taskId           #开始任务              参数为任务id
 TASK:CRASH taskId           #置任务状态为异常       参数为任务id
 
 THRead:MAX:NUM threadNum    #允许开启的线程最大数    参数为线程数
