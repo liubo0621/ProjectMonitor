@@ -225,7 +225,7 @@ TODO
 
 > 将收集的所有信息汇报定时至指定服务端
 
-读完文件后将信息汇报到服务端
+读完文件后将信息汇报到服务端，采用json格式。
 	
 
 > 日志记录功能，记录收发的命令以及被监控程序的状态
@@ -238,7 +238,7 @@ TODO
 
 ### 五、数据库设计 ###
 
-数据库采用mysql，数据库名为`ProjectMonitor`,表信息如下：
+数据库采用mysql，数据库名为`project_monitor`,表信息如下：
 
 应用程序信息表 TableName: `project_msg`
 
@@ -247,18 +247,18 @@ TODO
 | pk_pro_id  | int    |      | 非空，自增 | 主键 |
 | pro_name         | varchar    |  20    | 非空      | 应用程序名|
 | pro_thread_num  | int    |     | 可空   |  线程数 |
-| pro_cpu_rate | varchar | 10 | 可空 | CPU所占百分比 |
-| pro_physical_memory | varchar | 20 | 可空 | 所占内存 |
-| pro_run_time| int | | 可空 | 已运行时长 单位s |
+| pro_cpu_rate | double |  | 可空 | CPU所占百分比 |
+| pro_memory | int |  | 可空 | 所占内存 单位 k|
+| pro_run_time| varchar | | 可空 | 已运行时长 ISO 8601格式 年取365天 月取30天 |
 | pro_task_done_num | int | | 非空 | 已做完任务数 |
 | for_ser_id | int | | 非空 | 服务器id|
 
-客户端信息表 TableName: `clinet_msg`
+客户端信息表 TableName: `client_msg`
 
 | 字段名              | 数据类型| 长度 | 说明       | 描述 |
 |:-------------------|:-------|:----|:----------|:----|
 | pk_cli_id  | int    |      | 非空，自增 | 主键 |
-| cli_port | varchar | 6 |非空 | 客户端socket端口 |
+| cli_port | int |  |非空 | 客户端socket端口 |
 | cli_log_path | varchar | 20 | 可空 | 客户端日志目录 |
 | for_pro_id |  int    |      | 非空 | 所管理的应用程序id |
 
@@ -267,7 +267,7 @@ TODO
 | 字段名              | 数据类型| 长度 | 说明       | 描述 |
 |:-------------------|:-------|:----|:----------|:----|
 | pk_thr_id | int | | 非空，自增 | 主键 |
-| thr_id | int | | 非空 |  应用程序线程id |
+| thr_thread_id | int | | 非空 |  应用程序线程id |
 | thr_task_id | int | | 非空 | 任务id |
 | thr_task_name| varchar | 20|可空  |任务名|
 | for_pro_id  | int    |      | 非空 | 项目id |
@@ -297,8 +297,8 @@ CPU信息表 TableName: `cpu_msg`
 | cpu_vendor| varchar | 20 | 可空 | CPU的卖主 如Intel|
 | cpu_model | varchar | 20 | 非空| CPU型号|
 | cpu_chache_size| int | | 可空 | 缓冲存储器数量|
-| cpu_user| double| | 可空 | 用户使用率|
-| cpu_system| double| | 可空 | 系统使用率|
+| cpu_user_used| double| | 可空 | 用户使用率|
+| cpu_system_used| double| | 可空 | 系统使用率|
 | cpu_wait|double| | 可空 | 等待|
 | cpu_idle|double| | 可空 | 空闲|
 | for_server_id| int | | 非空 | 服务器id |
@@ -327,7 +327,7 @@ CPU信息表 TableName: `cpu_msg`
 |pk_com_id | int | | 非空，自增 | 主键 |
 |command | varchar | 20 | 非空 | 命令 |
 |ser_ip | varchar | 16 |非空 | 服务器IP|
-|client_port | varchar |6| 非空 | 客户端socket端口 |
+|client_port | int | | 非空 | 客户端socket端口 |
 |status | int | | 非空 | 状态 |
 
 字典表 TableName: `dict`
