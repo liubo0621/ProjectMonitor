@@ -12,8 +12,7 @@
 
 1. 能够实时接收并显示所管辖的各机器的状态
 2. 在数据库连接时，可以定时将信息汇报至数据库表
-3. 在无数据库连接时，可以自行记录各节点上报状态，以日志文件的形式
-4. 可以接收数据库下发的命令，并传至目标节点（命令包括重启机器、启动\重启指定程序、停止\启动指定程序进行的指定任务）
+4. 可以接收数据库下发的命令，并传至目标节点（命令包括重启机器、启动\重启指定程序、停止指定程序进行的指定任务）
 6. 日志记录功能，记录收发信息
 
 **客户端** 
@@ -47,13 +46,13 @@
 3. 根据命令做出对应的反应，命令格式如下：
 	<pre>
     TASK:STOP taskId,threadId   #停止任务              参数为任务id 和 线程id
-	TASK:START taskId           #开始任务              参数为任务id
 	TASK:CRASH taskId           #置任务状态为异常       参数为任务id
 	THRead:MAX:NUM threadNum    #允许开启的线程最大数    参数为线程数
 	</pre>
 4. 执行任务前或完成任务后写出文件，文件路径为`process.status_file`所配置的路径，写出的信息格式为：
 	<pre>
 	# 不同的信息用逗号分割，整个信息用< />括起来
+    process_id = 6073                     # 进程 id
 	write_file_time=2016-09-08 12:32:64   # yyyy-MM-dd HH：mm:ss
     process_name=xxx
     crash=true                            # true||false  是否崩溃
@@ -85,8 +84,7 @@
 service_config.properties
 	
 	service.port        = 6666                   #默认为6666
-	log_path            = D:\\xxx\\xxx\\logs\\   #日志目录
-	search_command_time = 5                      #单位为秒 
+	search_command_time = 5                      #查数据库间隔 单位为秒 
 
 ***服务端各模块设计***
   
@@ -97,14 +95,10 @@ service_config.properties
 > 在数据库连接时，可以定时将信息汇报至数据库表
 
 将收到的数据解析，传到数据库中。
- 
-> 在无数据库连接时，可以自行记录各节点上报状态，以日志文件形式
-
-在数据库连接异常或者上传数据异常时，将所收到的数据写入文件。文件以日期命名，（如2016-09-08.txt）。
 
 > 可以接收数据库下发的命令，并传至目标节点
 
-各线程内每隔指定的时间扫描一遍数据库（可通过客户端的ip和端口号作为筛选条件），则将命令下发到客户端。（命令包括重启机器、启动\重启指定程序、停止\启动指定程序进行的指定任务等）
+各线程内每隔指定的时间扫描一遍数据库（可通过客户端的ip和端口号作为筛选条件），则将命令下发到客户端。（命令包括重启机器、启动\重启指定程序、停止指定程序进行的指定任务等）
 
 命令定义如下：
 
@@ -112,7 +106,6 @@ service_config.properties
 	PROcess:RESTART				#重启程序
 	PROcess:START				#启动程序
 	TASK:STOP taskId,threadId   #停止任务    参数为任务id 和 线程id
-	TASK:START taskId           #开始任务    参数为任务id
 	
 > 日志记录
 
@@ -225,7 +218,7 @@ TODO
 
 > 将收集的所有信息汇报定时至指定服务端
 
-读完文件后将信息汇报到服务端
+读完文件后将信息汇报到服务端，采用json格式。
 	
 
 > 日志记录功能，记录收发的命令以及被监控程序的状态
@@ -238,7 +231,7 @@ TODO
 
 ### 五、数据库设计 ###
 
-数据库采用mysql，数据库名为`ProjectMonitor`,表信息如下：
+数据库采用mysql，数据库名为`project_monitor`,表信息如下：
 
 应用程序信息表 TableName: `project_msg`
 
@@ -247,27 +240,28 @@ TODO
 | pk_pro_id  | int    |      | 非空，自增 | 主键 |
 | pro_name         | varchar    |  20    | 非空      | 应用程序名|
 | pro_thread_num  | int    |     | 可空   |  线程数 |
-| pro_cpu_rate | varchar | 10 | 可空 | CPU所占百分比 |
-| pro_physical_memory | varchar | 20 | 可空 | 所占内存 |
-| pro_run_time| int | | 可空 | 已运行时长 单位s |
+| pro_cpu_rate | double |  | 可空 | CPU所占百分比 |
+| pro_memory | int |  | 可空 | 所占内存 单位 k|
+| pro_run_time| varchar | | 可空 | 已运行时长 （ISO 8601时间段格式 + 空格 + 总秒数） |
 | pro_task_done_num | int | | 非空 | 已做完任务数 |
 | for_ser_id | int | | 非空 | 服务器id|
 
-客户端信息表 TableName: `clinet_msg`
+客户端信息表 TableName: `client_msg`
 
 | 字段名              | 数据类型| 长度 | 说明       | 描述 |
 |:-------------------|:-------|:----|:----------|:----|
 | pk_cli_id  | int    |      | 非空，自增 | 主键 |
-| cli_port | varchar | 6 |非空 | 客户端socket端口 |
+| cli_port | int |  |非空 | 客户端socket端口 |
 | cli_log_path | varchar | 20 | 可空 | 客户端日志目录 |
 | for_pro_id |  int    |      | 非空 | 所管理的应用程序id |
+| for_ser_id |  int    |      | 非空 | 所在的服务器id |
 
 应用程序线程信息表 TableName: `thread_msg`
 
 | 字段名              | 数据类型| 长度 | 说明       | 描述 |
 |:-------------------|:-------|:----|:----------|:----|
 | pk_thr_id | int | | 非空，自增 | 主键 |
-| thr_id | int | | 非空 |  应用程序线程id |
+| thr_thread_id | int | | 非空 |  应用程序线程id |
 | thr_task_id | int | | 非空 | 任务id |
 | thr_task_name| varchar | 20|可空  |任务名|
 | for_pro_id  | int    |      | 非空 | 项目id |
@@ -297,11 +291,11 @@ CPU信息表 TableName: `cpu_msg`
 | cpu_vendor| varchar | 20 | 可空 | CPU的卖主 如Intel|
 | cpu_model | varchar | 20 | 非空| CPU型号|
 | cpu_chache_size| int | | 可空 | 缓冲存储器数量|
-| cpu_user| double| | 可空 | 用户使用率|
-| cpu_system| double| | 可空 | 系统使用率|
+| cpu_user_used| double| | 可空 | 用户使用率|
+| cpu_system_used| double| | 可空 | 系统使用率|
 | cpu_wait|double| | 可空 | 等待|
 | cpu_idle|double| | 可空 | 空闲|
-| for_server_id| int | | 非空 | 服务器id |
+| for_ser_id| int | | 非空 | 服务器id |
 
 硬盘信息表 TableName: `physical_memory_msg`
 
@@ -317,7 +311,7 @@ CPU信息表 TableName: `cpu_msg`
 | phy_memory_used| int | | 可空| 硬盘已用大小单位k |
 | phy_memory_avail| int | | 可空| 硬盘可用大小单位k |
 | phy_use_percent | double| | 可空 |资源的利用率|
-| for_server_id| int | | 非空 | 服务器id |
+| for_ser_id| int | | 非空 | 服务器id |
 
 
 命令信息表 TableName: `command_msg`
@@ -327,7 +321,7 @@ CPU信息表 TableName: `cpu_msg`
 |pk_com_id | int | | 非空，自增 | 主键 |
 |command | varchar | 20 | 非空 | 命令 |
 |ser_ip | varchar | 16 |非空 | 服务器IP|
-|client_port | varchar |6| 非空 | 客户端socket端口 |
+|client_port | int | | 非空 | 客户端socket端口 |
 |status | int | | 非空 | 状态 |
 
 字典表 TableName: `dict`
