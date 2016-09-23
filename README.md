@@ -46,27 +46,30 @@
 3. 根据命令做出对应的反应，命令格式如下：
 	<pre>
     TASK:STOP taskId,threadId   #停止任务              参数为任务id 和 线程id
-	TASK:CRASH taskId           #置任务状态为异常       参数为任务id
 	THRead:MAX:NUM threadNum    #允许开启的线程最大数    参数为线程数
 	</pre>
-4. 执行任务前或完成任务后写出文件，文件路径为`process.status_file`所配置的路径，写出的信息格式为：
+    
+   
+
+4. 执行任务前、完成任务后或捕获到异常时写出文件，文件路径为`process.status_file`所配置的路径，写出的信息格式为：
 	<pre>
 	# 不同的信息用逗号分割，整个信息用< />括起来
     process_id = 6073                     # 进程 id
 	write_file_time=2016-09-08 12:32:64   # yyyy-MM-dd HH：mm:ss
     process_name=xxx
-    crash=true                            # true||false  是否崩溃
+    exception=true                        # true||false  是否崩溃
 	thread_id=1
     thread_num=10
-	task_id=5
+	task_id=5                             # 0表示当前task为空 程序异常引起
     task_name=xxx
     task_length=12                        # 单位为s
-    task_status=doing                     # 任务状态  doing || done
+    task_status=2                         # 任务状态  2：doing | 3:done |  4:exception 
 	task_done_num=20
+    exception_msg=xxx
 	</pre> 
 
 例如：
-`<write_file_time=2016-09-08 12:32:64,process_name=xxx,crash=true,thread_id=1,thread_num=10,task_id=5,task_name=xxx,task_length=12,task_status=doing,task_done_num=20/>`
+`<process_id = 6073,write_file_time=2016-09-08 12:32:64,process_name=xxx,exception=true,thread_id=1,thread_num=10,task_id=5,task_name=xxx,task_length=12,task_status=2,task_done_num=20,exception_msg=xxx/>`
 
 <font color = "red">注：不要有多余的空格</font>
 
@@ -98,7 +101,7 @@ service_config.properties
 
 > 可以接收数据库下发的命令，并传至目标节点
 
-各线程内每隔指定的时间扫描一遍数据库（可通过客户端的ip和端口号作为筛选条件），则将命令下发到客户端。（命令包括重启机器、启动\重启指定程序、停止指定程序进行的指定任务等）
+各线程内每隔指定的时间扫描一遍命令表，按时间从小到大排序（可通过客户端的ip和端口号作为筛选条件），若有未处理的命令，则更新命令状态为doing，然后将命令下发到客户端。（命令包括重启机器、启动\重启指定程序、停止指定程序进行的指定任务等）。在收到DONE:command 的信息后，更改任务状态为done（command 为具体的任务）
 
 命令定义如下：
 
@@ -106,6 +109,7 @@ service_config.properties
 	PROcess:RESTART				#重启程序
 	PROcess:START				#启动程序
 	TASK:STOP taskId,threadId   #停止任务    参数为任务id 和 线程id
+
 	
 > 日志记录
 
@@ -186,7 +190,7 @@ TODO
 
 3. 崩溃
 
-	若应用程序写出的文件里面crash信息为true，则立即关闭应用程序，然后向应用程序发送导致crash的taskId，最后再调用1，重启程序。
+	若应用程序写出的文件里面task_status信息为异常，则停止当前任务，若exception字段为true则立即关闭应用程序，最后再调用1，重启程序。
 
     关闭进程：
 
@@ -207,6 +211,9 @@ TODO
 
 每隔指定时间内扫描一遍应用程序写出的文件。程序已运行时间为当前时间与应用程序第一次写文件的时间差。
 
+> 执行服务端下达的命令
+  
+ 收到命令后，向服务端发送`DONE:command` 信息（command 为具体的任务），然后判断任务类型，如果为重启服务器任务，则需要先关闭socket
 
 > 收集被监控程序CPU所占百分比、所占内存
 
@@ -244,6 +251,7 @@ TODO
 | pro_memory | int |  | 可空 | 所占内存 单位 k|
 | pro_run_time| varchar | | 可空 | 已运行时长 （ISO 8601时间段格式 + 空格 + 总秒数） |
 | pro_task_done_num | int | | 非空 | 已做完任务数 |
+| pro_status |  int | | 可空 | 应用程序状态 |
 | for_ser_id | int | | 非空 | 服务器id|
 
 客户端信息表 TableName: `client_msg`
@@ -264,6 +272,7 @@ TODO
 | thr_thread_id | int | | 非空 |  应用程序线程id |
 | thr_task_id | int | | 非空 | 任务id |
 | thr_task_name| varchar | 20|可空  |任务名|
+| thr_task_status | int | | 非空 | 任务状态 |
 | for_pro_id  | int    |      | 非空 | 项目id |
 | for_ser_id | int | | 非空 | 服务器id|
 
@@ -280,7 +289,8 @@ TODO
 | ser_memory_free| int | | 可空 | 服务器剩余内存 单位k|
 | ser_swap| int | | 可空 | 交换区总量 单位k|
 | ser_swap_used| int | | 可空 | 当前交换区使用量 单位k|
-| ser_swap_free| int | | 可空 | 当前交换区剩余量  单位k
+| ser_swap_free| int | | 可空 | 当前交换区剩余量  单位k|
+| ser_status |  int | | 可空 | 服务器状态 |
 
 CPU信息表 TableName: `cpu_msg`
 
@@ -314,6 +324,15 @@ CPU信息表 TableName: `cpu_msg`
 | for_ser_id| int | | 非空 | 服务器id |
 
 
+异常信息表  TableName: `exception_msg`
+
+| 字段名              | 数据类型| 长度 | 说明       | 描述 |
+|:-------------------|:-------|:----|:----------|:----|
+| pk_exc_id | int | | 非空，自增 | 主键|
+| exc_msg | longtext | | 非空 | 异常描述 |
+| for_pro_id  | int    |      | 非空 | 项目id |
+| for_ser_id | int | | 非空 | 服务器id|
+
 命令信息表 TableName: `command_msg`
 
 | 字段名              | 数据类型| 长度 | 说明       | 描述 |
@@ -338,14 +357,9 @@ CPU信息表 TableName: `cpu_msg`
 
 <pre>
 TASK:STOP taskId,threadId   #停止任务              参数为任务id 和 线程id
-TASK:CRASH taskId           #置任务状态为异常       参数为任务id
-
 THRead:MAX:NUM threadNum    #允许开启的线程最大数    参数为线程数
-
 SERver:RESTART              #重启服务器
-
 PROcess:RESTART             #重启程序
 PROcess:START               #启动程序
-
 </pre>
-    
+  
