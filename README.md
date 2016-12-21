@@ -253,6 +253,7 @@ TODO
 | pro_task_done_num | int | | 非空 | 已做完任务数 |
 | pro_status |  int | | 可空 | 应用程序状态 |
 | for_ser_id | int | | 非空 | 服务器id|
+| for_cli_id |  int    |      | 非空 | 客户端id |
 
 客户端信息表 TableName: `client_msg`
 
@@ -261,7 +262,6 @@ TODO
 | pk_cli_id  | int    |      | 非空，自增 | 主键 |
 | cli_port | int |  |非空 | 客户端socket端口 |
 | cli_log_path | varchar | 20 | 可空 | 客户端日志目录 |
-| for_pro_id |  int    |      | 非空 | 所管理的应用程序id |
 | for_ser_id |  int    |      | 非空 | 所在的服务器id |
 
 应用程序线程信息表 TableName: `thread_msg`
@@ -363,3 +363,10 @@ PROcess:RESTART             #重启程序
 PROcess:START               #启动程序
 </pre>
   
+
+### 五、前台需求 ###
+1. 服务器管理
+    1. CPU信息
+    2. 
+2. 项目管理
+3. 用户管理
